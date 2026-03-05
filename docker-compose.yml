@@ -1,0 +1,192 @@
+# VaultClaw Docker Compose
+#
+# Usage:
+#   1. cp .env.example .env
+#   2. Edit .env — set VAULTCLAW_GATEWAY_TOKEN and at least one LLM API key
+#   3. mkdir -p data/.vaultclaw data/workspace secrets
+#   4. docker build -t vaultclaw:local .
+#   5. docker compose up -d
+#
+# Ports:
+#   18789 — Gateway WebSocket (API + channel connections)
+#   18790 — Web UI control panel (http://localhost:18790)
+#
+# Data persisted in ./data/ (configurable via VAULTCLAW_CONFIG_DIR / VAULTCLAW_WORKSPACE_DIR)
+
+# ─── Docker Secrets ───────────────────────────────────────────────────────────
+# Optional: Use Docker secrets for Claude session credentials.
+# Create each file with mode 600 before starting:
+#   echo "your-value" > secrets/claude_ai_session_key.txt
+#   chmod 600 secrets/claude_ai_session_key.txt
+#
+# If you don't use Claude.ai web session auth, create empty placeholder files:
+#   touch secrets/claude_ai_session_key.txt secrets/claude_web_session_key.txt secrets/claude_web_cookie.txt
+secrets:
+  claude_ai_session_key:
+    file: ${VAULTCLAW_SECRETS_DIR:-./secrets}/claude_ai_session_key.txt
+  claude_web_session_key:
+    file: ${VAULTCLAW_SECRETS_DIR:-./secrets}/claude_web_session_key.txt
+  claude_web_cookie:
+    file: ${VAULTCLAW_SECRETS_DIR:-./secrets}/claude_web_cookie.txt
+
+# ─── Named Volumes ────────────────────────────────────────────────────────────
+volumes:
+  vaultclaw-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULTCLAW_CONFIG_DIR:-./data/.vaultclaw}
+  vaultclaw-workspace:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULTCLAW_WORKSPACE_DIR:-./data/workspace}
+
+# ─── Services ─────────────────────────────────────────────────────────────────
+services:
+
+  # ── Gateway ──────────────────────────────────────────────────────────────────
+  # The core WebSocket gateway. Handles all channel connections, routes messages
+  # to the agent runtime, and serves the Web UI.
+  vaultclaw-gateway:
+    image: ${VAULTCLAW_IMAGE:-vaultclaw:local}
+    container_name: vaultclaw-gateway
+    restart: unless-stopped
+    init: true
+
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      NODE_ENV: production
+
+      # ── Gateway auth (required if binding beyond loopback) ──────────────────
+      VAULTCLAW_GATEWAY_TOKEN: ${VAULTCLAW_GATEWAY_TOKEN}
+
+      # ── LLM provider API keys ───────────────────────────────────────────────
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+
+      # ── Channel tokens ──────────────────────────────────────────────────────
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+      MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN:-}
+      MATTERMOST_URL: ${MATTERMOST_URL:-}
+
+      # ── Tool API keys ────────────────────────────────────────────────────────
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+
+      # ── Secrets via file paths (Docker secrets pattern) ─────────────────────
+      # Credentials are mounted as files at /run/secrets/* and read via *_FILE vars.
+      # This avoids leaking secrets into the process environment.
+      CLAUDE_AI_SESSION_KEY_FILE: /run/secrets/claude_ai_session_key
+      CLAUDE_WEB_SESSION_KEY_FILE: /run/secrets/claude_web_session_key
+      CLAUDE_WEB_COOKIE_FILE: /run/secrets/claude_web_cookie
+
+    secrets:
+      - claude_ai_session_key
+      - claude_web_session_key
+      - claude_web_cookie
+
+    volumes:
+      - vaultclaw-config:/home/node/.vaultclaw
+      - vaultclaw-workspace:/home/node/.vaultclaw/workspace
+
+    ports:
+      # Gateway WebSocket API — used by all clients and channel integrations
+      - "${VAULTCLAW_GATEWAY_PORT:-18789}:18789"
+      # Web UI control panel — browse to http://localhost:18790
+      - "${VAULTCLAW_BRIDGE_PORT:-18790}:18790"
+
+    # Health check — requires gateway to be running with --allow-unconfigured
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:18790/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    # ── Container hardening ─────────────────────────────────────────────────
+    # Read-only root filesystem with a writable /tmp tmpfs.
+    # All Linux capabilities are dropped. No privilege escalation allowed.
+    # Syscalls restricted to the Node.js allowlist via seccomp profile.
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./docker/seccomp-node.json
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--allow-unconfigured",
+        "--bind",
+        "${VAULTCLAW_GATEWAY_BIND:-lan}",
+        "--port",
+        "18789",
+      ]
+
+  # ── CLI ────────────────────────────────────────────────────────────────────
+  # Interactive CLI for running commands, wizard, diagnostics, and one-shot tasks.
+  # Attach with: docker attach vaultclaw-cli
+  # Or exec commands: docker compose exec vaultclaw-cli node dist/index.js doctor
+  vaultclaw-cli:
+    image: ${VAULTCLAW_IMAGE:-vaultclaw:local}
+    container_name: vaultclaw-cli
+    restart: "no"
+    init: true
+    depends_on:
+      vaultclaw-gateway:
+        condition: service_healthy
+
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      BROWSER: echo
+
+      VAULTCLAW_GATEWAY_TOKEN: ${VAULTCLAW_GATEWAY_TOKEN}
+
+      # API keys (same as gateway for CLI-initiated requests)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+
+      CLAUDE_AI_SESSION_KEY_FILE: /run/secrets/claude_ai_session_key
+      CLAUDE_WEB_SESSION_KEY_FILE: /run/secrets/claude_web_session_key
+      CLAUDE_WEB_COOKIE_FILE: /run/secrets/claude_web_cookie
+
+    secrets:
+      - claude_ai_session_key
+      - claude_web_session_key
+      - claude_web_cookie
+
+    volumes:
+      - vaultclaw-config:/home/node/.vaultclaw
+      - vaultclaw-workspace:/home/node/.vaultclaw/workspace
+
+    stdin_open: true
+    tty: true
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    entrypoint: ["node", "dist/index.js"]
+    # Default: open interactive shell. Override for one-shot commands.
+    # command: ["send", "Hello from Docker"]

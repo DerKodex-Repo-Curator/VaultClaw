@@ -1,0 +1,110 @@
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+.yarn/
+bun.lockb
+
+# ─── Build output ─────────────────────────────────────────────────────────────
+dist/
+*.tsbuildinfo
+*.js.map
+.cache/
+.rollup.cache/
+
+# ─── Test & coverage ──────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ─── Secrets & credentials ────────────────────────────────────────────────────
+# NEVER commit secrets. Use .env.example as template.
+.env
+*.env
+.env.*
+!.env.example
+
+# VaultClaw user config (contains tokens and keys)
+vaultclaw.json
+secrets/
+*.txt.secret
+
+# Docker secrets directory
+secrets/*.txt
+
+# ─── VaultClaw runtime state ──────────────────────────────────────────────────
+.vaultclaw/
+data/
+sandbox/
+workspace/
+*.session
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# ─── Native app builds ────────────────────────────────────────────────────────
+# macOS
+apps/macos/build/
+apps/macos/.build/
+apps/macos/DerivedData/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# iOS
+apps/ios/build/
+apps/ios/.build/
+apps/ios/DerivedData/
+*.ipa
+
+# Android
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+*.apk
+*.aab
+local.properties
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS generated ─────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ─── Playwright ───────────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ─── Temporary files ──────────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# ─── Documentation build ──────────────────────────────────────────────────────
+docs/.mintlify/
+docs/build/
+.docusaurus/
