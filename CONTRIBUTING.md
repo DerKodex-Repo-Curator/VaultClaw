@@ -21,8 +21,8 @@ Bun is used by some build scripts but Node.js + pnpm is sufficient for most deve
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/your-fork/vaultclaw.git
-cd vaultclaw
+git clone https://github.com/<your-username>/VaultClaw.git
+cd VaultClaw
 
 # 2. Install all dependencies (root + extensions + skills + ui)
 pnpm install
