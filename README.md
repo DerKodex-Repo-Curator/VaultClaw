@@ -4,7 +4,7 @@
 
 VaultClaw is a self-hosted, single-user AI gateway that connects your preferred large language models to every messaging platform you use — Telegram, Discord, Slack, WhatsApp, iMessage, Signal, and more — while keeping your data, your keys, and your conversations entirely under your control.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node.js >= 22](https://img.shields.io/badge/Node.js-%3E%3D22-brightgreen)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed)](docker-compose.yml)
@@ -811,7 +811,7 @@ Key areas where contributions are most valuable:
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for full text.
+Apache-2.0 — see [LICENSE](LICENSE) for full text and [NOTICE](NOTICE) for attribution.
 
 ---
 
