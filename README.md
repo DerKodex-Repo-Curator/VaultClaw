@@ -1,10 +1,19 @@
-# VaultClaw
+# VaultClaw — a security-hardened distribution of OpenClaw
 
 **Your AI. Your hardware. Your rules.**
 
 VaultClaw is a self-hosted, single-user AI gateway that connects your preferred large language models to every messaging platform you use — Telegram, Discord, Slack, WhatsApp, iMessage, Signal, and more — while keeping your data, your keys, and your conversations entirely under your control.
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+> **This is a hardened distribution of [OpenClaw](https://openclaw.ai), not an independent
+> product.** OpenClaw provides the gateway, agent runtime, channel adapters, and the skill
+> and extension system. VaultClaw's contribution is the security layer described in
+> [Security Model](#security-model) and the deployment topology in this repository.
+> See [Relationship to OpenClaw](#relationship-to-openclaw).
+>
+> **This repository holds the hardening and deployment configuration only.** It does not
+> contain the VaultClaw or OpenClaw application source.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js >= 22](https://img.shields.io/badge/Node.js-%3E%3D22-brightgreen)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed)](docker-compose.yml)
@@ -14,6 +23,7 @@ VaultClaw is a self-hosted, single-user AI gateway that connects your preferred 
 
 ## Table of Contents
 
+- [Relationship to OpenClaw](#relationship-to-openclaw)
 - [What is VaultClaw?](#what-is-vaultclaw)
 - [Why This System — A Builder's Perspective](#why-this-system--a-builders-perspective)
 - [System Architecture](#system-architecture)
@@ -30,6 +40,29 @@ VaultClaw is a self-hosted, single-user AI gateway that connects your preferred 
 - [Tech Stack](#tech-stack)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Relationship to OpenClaw
+
+VaultClaw is a downstream distribution of [OpenClaw](https://openclaw.ai) by Peter
+Steinberger, MIT licensed. It is not a rewrite and it is not an independent
+implementation.
+
+| Layer | Origin |
+|---|---|
+| WebSocket gateway, agent runtime, channel adapters | OpenClaw |
+| Skill and extension system, and the skills and extensions themselves | OpenClaw |
+| LLM provider adapters, tool engine, memory system | OpenClaw |
+| Container hardening: seccomp profile, `cap_drop: ALL`, `read_only`, non-root uid | VaultClaw |
+| Secrets as mounted files with the `_FILE` convention, never environment variables | VaultClaw |
+| Gateway token authentication and DM pairing defaults | VaultClaw |
+| Loopback-by-default bind, SSRF protection posture, trust audit logging | VaultClaw |
+| Deployment topology: Compose stack, systemd and launchd manifests | VaultClaw |
+
+The architecture and feature sections below describe the combined system, so that the
+deployment documentation makes sense on its own. Credit for the underlying platform
+belongs upstream.
 
 ---
 
@@ -134,8 +167,8 @@ flowchart TD
     end
 
     subgraph PLUGINS["Plugin & Skill System"]
-        SKILLS[55+ Skills]
-        EXTS[42+ Extensions]
+        SKILLS[Skills - upstream]
+        EXTS[Extensions - upstream]
     end
 
     subgraph STORAGE["Storage"]
@@ -278,16 +311,17 @@ sequenceDiagram
 
 ### Install
 
+VaultClaw is not published to a package registry. Install OpenClaw upstream, then
+apply the hardening configuration from this repository.
+
 ```bash
-# From npm (recommended)
-npm install -g vaultclaw
-
-# Or with pnpm
-pnpm add -g vaultclaw
-
-# Or with bun
-bun add -g vaultclaw
+npm install -g openclaw
 ```
+
+> **A note on naming.** The hardened fork renames the upstream binary and state
+> directory, so the commands below read `vaultclaw` and `~/.vaultclaw/`. Running stock
+> OpenClaw with this hardening configuration, the equivalents are `openclaw` and
+> `~/.openclaw/`.
 
 ### Onboard
 
@@ -361,19 +395,17 @@ mkdir -p data/.vaultclaw data/workspace
 
 ### 4. Build the image
 
+The Dockerfile ships with the application source, which is not part of this repository.
+Build from an OpenClaw checkout, then point `VAULTCLAW_IMAGE` at the resulting tag.
+
 ```bash
-# Standard build
+# Standard build, run from the application source tree
 docker build -t vaultclaw:local .
 
 # With browser automation support (+~300MB)
 docker build --build-arg VAULTCLAW_INSTALL_BROWSER=1 -t vaultclaw:local .
 ```
 
-Or pull a prebuilt image:
-
-```bash
-docker pull ghcr.io/your-org/vaultclaw:latest
-```
 
 ### 5. Start the stack
 
@@ -512,9 +544,9 @@ VaultClaw uses two configuration layers: environment variables (`.env`) and the 
 
 ## Plugin and Skill System
 
-VaultClaw's capability surface is extended through **Skills** (user-facing modules) and **Extensions** (infrastructure modules).
+The capability surface is extended through **Skills** (user-facing modules) and **Extensions** (infrastructure modules). Both come from OpenClaw upstream; VaultClaw inherits them unchanged.
 
-### Skills (55+ available)
+### Skills (provided by OpenClaw)
 
 Skills expose new tools and commands to the agent and CLI:
 
@@ -526,7 +558,7 @@ Skills expose new tools and commands to the agent and CLI:
 | Media | `voice-call`, `openai-whisper` |
 | UI | `canvas`, `bluebubbles` |
 
-### Extensions (42+ available)
+### Extensions (provided by OpenClaw)
 
 Extensions add infrastructure capabilities:
 
@@ -739,33 +771,18 @@ pnpm lint && pnpm fmt
 
 ### Project Structure
 
+The commands in this section run against the application source tree, which is not part
+of this repository. The upstream layout is
+documented at [openclaw.ai](https://openclaw.ai). What this repository contains:
+
 ```
-vaultclaw/
-├── src/
-│   ├── agents/          # Pi agent orchestration runtime
-│   ├── gateway/         # WebSocket control plane server
-│   ├── channels/        # Channel abstraction + routing
-│   ├── cli/             # CLI argument parsing + UI
-│   ├── commands/        # Command implementations
-│   ├── config/          # Config loading and validation
-│   ├── memory/          # Memory and vector search
-│   ├── security/        # Auth and trust management
-│   ├── plugins/         # Plugin runtime loader
-│   ├── plugin-sdk/      # SDK for writing plugins/skills
-│   ├── providers/       # LLM provider adapters
-│   ├── tui/             # Terminal UI
-│   ├── web/             # Web UI components
-│   └── daemon/          # Systemd/launchd daemon management
-├── extensions/          # 42+ infrastructure extensions
-├── skills/              # 55+ user-facing skill modules
-├── ui/                  # Vite + Lit web control panel
-├── apps/
-│   ├── macos/           # Swift macOS native app
-│   ├── ios/             # Swift iOS companion app
-│   └── android/         # Android companion app
-├── docs/                # Mintlify documentation
-├── scripts/             # Build, Docker, deployment scripts
-└── test/                # Test fixtures, helpers, mocks
+VaultClaw/
+├── docker-compose.yml    # Hardened Compose stack
+├── .env.example          # Configuration template
+├── SECURITY.md           # Threat model and reporting
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+└── .github/              # Issue and PR templates
 ```
 
 ---
@@ -811,7 +828,11 @@ Key areas where contributions are most valuable:
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE) for full text and [NOTICE](NOTICE) for attribution.
+MIT — see [LICENSE](LICENSE) for full text.
+
+VaultClaw inherits OpenClaw's MIT license. Copyright for the upstream platform is held
+by Peter Steinberger; copyright for the VaultClaw hardening work is held by Sayantan
+Saha. [NOTICE](NOTICE) records which parts are which.
 
 ---
 
