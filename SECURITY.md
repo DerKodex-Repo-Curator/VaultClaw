@@ -13,7 +13,7 @@ Only the latest release of VaultClaw receives security fixes.
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Report security vulnerabilities through [GitHub Private Security Advisories](https://github.com/your-org/vaultclaw/security/advisories/new).
+Report security vulnerabilities through [GitHub Private Security Advisories](https://github.com/Sayantansaha27-tech/VaultClaw/security/advisories/new).
 
 Include:
 - A description of the vulnerability

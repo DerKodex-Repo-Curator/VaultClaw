@@ -680,8 +680,8 @@ Click **Deploy to Render** (add badge once repo is public), or:
 ### Setup
 
 ```bash
-git clone https://github.com/your-org/vaultclaw.git
-cd vaultclaw
+git clone https://github.com/Sayantansaha27-tech/VaultClaw.git
+cd VaultClaw
 pnpm install
 ```
 
